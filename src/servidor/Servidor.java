@@ -11,14 +11,13 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Vector;
+import java.util.*;
 
 public class Servidor extends Thread {
     // Parte que controla as conex�es por meio de threads.
     private static Vector CLIENTES;
+    private static Vector ADDRESS;
+    private Map<String, String> CliAdre = new HashMap<String, String>();
     // socket deste cliente
     private Socket conexao;
     // nome deste cliente
@@ -50,6 +49,8 @@ public class Servidor extends Thread {
     public static void main(String args[]) {
         // instancia o vetor de CLIENTES conectados
         CLIENTES = new Vector();
+        ADDRESS = new Vector();
+
         try {
             // cria um socket que fica escutando a porta 5555.
             ServerSocket server = new ServerSocket(5555);
@@ -83,13 +84,13 @@ public class Servidor extends Thread {
             // recebe o nome do cliente
             this.nomeCliente = entrada.readLine();
 
-
             System.out.println (this.conexao.getRemoteSocketAddress().toString());
 
             //chamada ao metodo que testa nomes iguais
             if (armazena(this.nomeCliente)){
                 saida.println("Este nome ja existe! Conecte novamente com outro Nome.");
                 CLIENTES.add(saida);
+
                 //fecha a conexao com este cliente
                 this.conexao.close();
                 return;
@@ -102,7 +103,9 @@ public class Servidor extends Thread {
                 return;
             }
             //adiciona os dados de saida do cliente no objeto CLIENTES
+            CliAdre.put(this.nomeCliente, this.conexao.getRemoteSocketAddress().toString());
             CLIENTES.add(saida);
+            ADDRESS.add(this.conexao.getRemoteSocketAddress().toString());
             //recebe a mensagem do cliente
             String msg = entrada.readLine();
             // Verificar se linha � null (conex�o encerrada)
@@ -155,8 +158,13 @@ public class Servidor extends Thread {
     }
 
     public  void clientCommandsHandler(PrintStream saida, String msg) throws IOException {
-        Enumeration e = CLIENTES.elements();
-        PrintStream chat = (PrintStream) e.nextElement();
+        Enumeration clients = CLIENTES.elements();
+        PrintStream chat = (PrintStream) clients.nextElement();
+
+        for (Object i : ADDRESS) {
+            System.out.println(i.toString());
+        }
+
         // Read only commands
         switch (msg) {
 
@@ -174,14 +182,21 @@ public class Servidor extends Thread {
                         new BufferedReader(new InputStreamReader(this.conexao.getInputStream()));
 
                 // when a client wants to play, send all the users online and wait for answer
-                    chat.println(LISTA_DE_NOMES.toString());
-                    String player2 = null;
-                    while (player2 == null) {
-                        // choose player2
-                        player2 = entrada.readLine();
+                chat.println(LISTA_DE_NOMES.toString());
+                String player2 = null;
+                while (player2 == null) {
+                    // choose player2
+                    player2 = entrada.readLine();
+                }
+                for ( Map.Entry<String, String> entry : CliAdre.entrySet() ) {
+                    if(entry.getKey().toString().equals(player2))
+                    {
+
                     }
-                    System.out.println("Jogador 2: " + player2);
+                    System.out.println("Jogador 2:  CHAVE: "+ entry.getKey().toString() + "valor: "+entry.getValue());
+                }
                 break;
+
             default:
                 System.out.println("Invalid: " + msg);
         }

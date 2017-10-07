@@ -11,13 +11,17 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.util.*;
 
 public class Servidor extends Thread {
     // Parte que controla as conex�es por meio de threads.
     private static Vector CLIENTES;
     private static Vector ADDRESS;
-    private Map<String, String> CliAdre = new HashMap<String, String>();
+
+    private static Map<String, Socket> CliAdre;
+    private static Map<String, PrintStream> CliStream;
+
     // socket deste cliente
     private Socket conexao;
     // nome deste cliente
@@ -50,6 +54,8 @@ public class Servidor extends Thread {
         // instancia o vetor de CLIENTES conectados
         CLIENTES = new Vector();
         ADDRESS = new Vector();
+        CliAdre = new HashMap<String, Socket>();
+        CliStream = new HashMap<String, PrintStream>();
 
         try {
             // cria um socket que fica escutando a porta 5555.
@@ -103,7 +109,9 @@ public class Servidor extends Thread {
                 return;
             }
             //adiciona os dados de saida do cliente no objeto CLIENTES
-            CliAdre.put(this.nomeCliente, this.conexao.getRemoteSocketAddress().toString());
+            CliAdre.put(this.nomeCliente, this.conexao);
+            CliStream.put(this.nomeCliente, saida);
+
             CLIENTES.add(saida);
             ADDRESS.add(this.conexao.getRemoteSocketAddress().toString());
             //recebe a mensagem do cliente
@@ -158,42 +166,50 @@ public class Servidor extends Thread {
     }
 
     public  void clientCommandsHandler(PrintStream saida, String msg) throws IOException {
-        Enumeration clients = CLIENTES.elements();
-        PrintStream chat = (PrintStream) clients.nextElement();
 
-        for (Object i : ADDRESS) {
-            System.out.println(i.toString());
+        for ( Map.Entry<String, Socket> entry : CliAdre.entrySet() ) {
+                System.out.println("NOME" + entry.getKey() +" IP: "+ entry.getValue().getRemoteSocketAddress().toString());
         }
 
-        // Read only commands
+        // Commands
         switch (msg) {
-
-            case "TESTE":
-                System.out.println("Works: " + msg);
-                break;
-            case "USERS":
-                chat.println(LISTA_DE_NOMES.toString());
-                break;
-            case "STATUS":
-                System.out.println("Jogadores Online: " + LISTA_DE_NOMES.size());
-                break;
             case "PLAY":
                 BufferedReader entrada =
                         new BufferedReader(new InputStreamReader(this.conexao.getInputStream()));
 
                 // when a client wants to play, send all the users online and wait for answer
-                chat.println(LISTA_DE_NOMES.toString());
-                String player2 = null;
-                while (player2 == null) {
+                saida.println(LISTA_DE_NOMES.toString());
+
+                // Start a new game
+                String player2;
+                Boolean newGame = true;
+                while (newGame) {
                     // choose player2
                     player2 = entrada.readLine();
-                }
-                for ( Map.Entry<String, String> entry : CliAdre.entrySet() ) {
-                    if(entry.getKey().toString().equals(player2))
-                    {
+                    System.out.println("Escolheu Player 2: " + player2);
 
+                    // Procura pelo socket do Player 2
+                    Socket player2Connection = CliAdre.get(player2);
+                    System.out.println("Player 2 IP: " + player2Connection.getRemoteSocketAddress().toString());
+
+                    //Envia para o player 2 uma pergunta
+                    CliStream.get(player2).println(this.nomeCliente + " gostaria de jogar com voce. Digite SIM ou NAO: ");
+                    BufferedReader player2Input = new BufferedReader(new InputStreamReader(this.conexao.getInputStream()));
+
+                    String player2Res = null;
+                    while (player2Res == null) {
+                        System.out.println("Aguardando resposta");
+                        String res = player2Input.readLine();
+                        System.out.println("Resposta: " + res);
+                        if (res.equals("SIM")) {
+                            // Aqui ele remove os clientes da lista de usuários disponíveis.
+                            // Para eles criarem um P2P entre si e jogarem
+                            System.out.println(this.nomeCliente + " e "+ player2 + " jogando...");
+                            player2Res = res;
+                        }
                     }
-                    System.out.println("Jogador 2:  CHAVE: "+ entry.getKey().toString() + "valor: "+entry.getValue());
+
+                    System.out.println("Final do comando PLAY...");
                 }
                 break;
 
